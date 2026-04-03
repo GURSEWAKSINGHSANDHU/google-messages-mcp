@@ -139,8 +139,7 @@ server.tool(
 
     const messages = (result.data || []).slice(-limit);
     if (messages.length === 0) {
-      const debugInfo = result.debug ? `\n\nDebug DOM info:\n${JSON.stringify(result.debug, null, 2)}` : "";
-      return { content: [{ type: "text", text: `No messages found in this conversation.${debugInfo}` }] };
+      return { content: [{ type: "text", text: "No messages found in this conversation." }] };
     }
 
     const lines = messages.map((m) => {
@@ -171,34 +170,15 @@ server.tool(
       15000
     );
 
-    const debugStr = result.debug ? `\nDebug: ${JSON.stringify(result.debug)}` : "";
     if (!result.ok) {
-      return { content: [{ type: "text", text: `Failed to send: ${result.error}${debugStr}` }] };
+      return { content: [{ type: "text", text: `Failed to send: ${result.error || result.message}` }] };
     }
 
     return {
       content: [{
         type: "text",
-        text: `Message sent to conversation ${conversationId}: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"${debugStr}`,
+        text: `Message sent to conversation ${conversationId}: "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`,
       }],
-    };
-  }
-);
-
-// Tool 4: Debug DOM (temporary)
-server.tool(
-  "debug_dom",
-  "Debug: inspect Google Messages DOM structure",
-  {
-    selector: z.string().optional().describe("Optional CSS selector to inspect"),
-  },
-  async ({ selector }) => {
-    const result = await sendToExtension({ type: "debug_dom", selector }, 10000);
-    if (!result.ok) {
-      return { content: [{ type: "text", text: `Error: ${result.error}` }] };
-    }
-    return {
-      content: [{ type: "text", text: JSON.stringify(result.data, null, 2) }],
     };
   }
 );

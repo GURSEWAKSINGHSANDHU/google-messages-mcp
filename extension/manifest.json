@@ -1,20 +1,17 @@
 {
   "manifest_version": 3,
   "name": "Google Messages MCP Bridge",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Bridges Google Messages Web to Claude Code via MCP",
-  "permissions": ["activeTab"],
+  "permissions": ["activeTab", "debugger"],
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
       "matches": ["https://messages.google.com/*"],
       "js": ["content.js"],
       "run_at": "document_idle"
-    },
-    {
-      "matches": ["https://messages.google.com/*"],
-      "js": ["main-world.js"],
-      "run_at": "document_idle",
-      "world": "MAIN"
     }
   ],
   "host_permissions": ["https://messages.google.com/*"]

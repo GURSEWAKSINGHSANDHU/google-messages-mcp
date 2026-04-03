@@ -75,9 +75,6 @@
         case "get_status":
           return { ok: true, data: getConnectionStatus() };
 
-        case "debug_dom":
-          return { ok: true, data: debugDom(req.selector) };
-
         default:
           return { ok: false, error: `Unknown command: ${req.type}` };
       }
@@ -294,61 +291,21 @@
       }
     }
 
-    const debug = {};
-
-    // Find the input field — try multiple selectors
-    const inputSelectors = [
-      '[contenteditable="true"][role="textbox"]',
-      '[contenteditable="true"]',
-      'textarea[placeholder*="essage"]',
-      'textarea',
-      'input[placeholder*="essage"]',
-    ];
-    let input = null;
-    for (const sel of inputSelectors) {
-      input = document.querySelector(sel);
-      if (input) { debug.inputSelector = sel; debug.inputTag = input.tagName; break; }
-    }
-
-    if (!input) {
-      debug.allContentEditable = document.querySelectorAll('[contenteditable]').length;
-      debug.allTextarea = document.querySelectorAll('textarea').length;
-      debug.allInputs = document.querySelectorAll('input').length;
-      return { ok: false, error: "Could not find message input field", debug };
-    }
-
-    // Send via MAIN WORLD script (main-world.js) to trigger Angular's zone.js
-    // Content script isolated world events don't enter Angular's zone
-    // Communication via CustomEvent on document (works between worlds)
-    debug.currentUrl = location.href;
-
-    const callbackId = 'gmcp_reply_' + Date.now();
-
-    // Listen for response from main-world.js via CustomEvent
-    const sendResult = new Promise((resolve) => {
-      const handler = (event) => {
-        document.removeEventListener(callbackId, handler);
-        resolve(event.detail);
-      };
-      document.addEventListener(callbackId, handler);
-      setTimeout(() => {
-        document.removeEventListener(callbackId, handler);
-        resolve({ success: false, reason: 'timeout' });
-      }, 8000);
+    // Use chrome.debugger CDP via background service worker
+    // This generates trusted keyboard events at the browser engine level
+    const result = await new Promise((resolve) => {
+      chrome.runtime.sendMessage(
+        { action: "typeAndSend", text },
+        (response) => resolve(response || { ok: false, error: "No response from background" })
+      );
+      // Timeout fallback
+      setTimeout(() => resolve({ ok: false, error: "Background script timeout" }), 15000);
     });
 
-    // Send request to main-world.js via CustomEvent
-    document.dispatchEvent(new CustomEvent('gmcp-send-request', {
-      detail: { text, inputSelector: debug.inputSelector, callbackId }
-    }));
-
-    const res = await sendResult;
-    debug.mainWorldResult = res;
-
     return {
-      ok: res.success,
-      message: res.success ? "Message sent" : "Send may have failed",
-      debug
+      ok: result.ok,
+      message: result.ok ? "Message sent" : (result.error || "Send failed"),
+      debug: result.debug
     };
   }
 
